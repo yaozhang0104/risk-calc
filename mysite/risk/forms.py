@@ -10,6 +10,7 @@ class StockForm(forms.Form):
     esp = forms.DecimalField(label='ES Probability', max_value=0.9999, min_value=0.0001, decimal_places=4, widget=forms.TextInput(attrs={'class': 'form-control'}))
     nday = forms.IntegerField(label='N Day Horizon (Day)', max_value=2520, min_value=1, widget=forms.TextInput(attrs={'class': 'form-control'}))
     method = forms.ChoiceField(label='Calculation Method', choices=[('PAR','Parametric'),('HIS','Historical'),('MC','Monte Carlo')], widget=forms.Select(attrs={'class': 'form-control'}))
+    plotType = forms.ChoiceField(label='Plot Type', choices=[('PR','Price'),('VAR','Value at Risk (VaR)'),('ES','Expected Shortfall (ES)')], widget=forms.RadioSelect(attrs={'class': 'form-control radio-sel'}))
 
 class PortfolioForm(forms.Form):
     ticker = forms.CharField(label='Ticker List', widget=forms.TextInput(attrs={'class': 'form-control'}))
@@ -22,6 +23,7 @@ class PortfolioForm(forms.Form):
     esp = forms.DecimalField(label='ES Probability', max_value=0.9999, min_value=0.0001, decimal_places=4, widget=forms.TextInput(attrs={'class': 'form-control'}))
     nday = forms.IntegerField(label='N Day Horizon (Day)', max_value=2520, min_value=1, widget=forms.TextInput(attrs={'class': 'form-control'}))
     method = forms.ChoiceField(label='Calculation Method', choices=[('PAR','Parametric'),('HIS','Historical'),('MC','Monte Carlo')], widget=forms.Select(attrs={'class': 'form-control'}))
+    plotType = forms.ChoiceField(label='Plot Type', choices=[('PV','Portfolio Value'),('VAR','Value at Risk (VaR)'),('ES','Expected Shortfall (ES)')], widget=forms.RadioSelect(attrs={'class': 'form-control radio-sel'}))
 
 class OptionForm(forms.Form):
     ticker = forms.CharField(label='Ticker', widget=forms.TextInput(attrs={'class': 'form-control'}))
@@ -33,4 +35,5 @@ class OptionForm(forms.Form):
     esp = forms.DecimalField(label='ES Probability', max_value=0.9999, min_value=0.0001, decimal_places=4, widget=forms.TextInput(attrs={'class': 'form-control'}))
     nday = forms.IntegerField(label='N Day Horizon (Day)', max_value=2520, min_value=1, widget=forms.TextInput(attrs={'class': 'form-control'}))
     method = forms.ChoiceField(label='Calculation Method', choices=[('PAR','Parametric'),('HIS','Historical'),('MC','Monte Carlo')], widget=forms.Select(attrs={'class': 'form-control'}))
+    plotType = forms.ChoiceField(label='Plot Type', choices=[('PR','Price'),('VAR','Value at Risk (VaR)'),('ES','Expected Shortfall (ES)')], widget=forms.RadioSelect(attrs={'class': 'form-control radio-sel'}))
 

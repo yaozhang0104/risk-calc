@@ -3,7 +3,7 @@ from django.http import HttpResponse
 from django.template import loader
 from django.shortcuts import redirect
 
-import json, time
+import json
 
 from .forms import StockForm
 from .forms import PortfolioForm
@@ -38,8 +38,12 @@ def render_stock(request):
             esp = form.cleaned_data['esp']
             nday = form.cleaned_data['nday']
             method = form.cleaned_data['method']
+            plotType = form.cleaned_data['plotType']
             data = dataframe_from_tickerlist(ticker, startDate, endDate)
-            jsonData = plot_historical_price(ticker, data)
+            if (plotType == "PR"):
+                jsonData = plot_historical_price(ticker, data)
+            else:
+                return redirect('/risk/stock/')
             return render(request, 'risk/index.html', {'plotValue': jsonData, 'version': 'stock'})
     else:
         form = StockForm(initial={'ticker':'AAPL', 'initial':'10000', 'window':'10', 'startDate':'2000-1-1', 'endDate':'2010-12-31', 'varp':'0.99', 'esp':'0.975', 'nday':'5'})
