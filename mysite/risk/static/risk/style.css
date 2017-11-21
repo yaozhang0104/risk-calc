@@ -54,11 +54,14 @@ body {
     padding-right: 10px;
 }
 
+#plot-container {
+    width: 800px;
+    margin-top: 30px;
+}
+
 #plot {
     width: 800px;
     height: 500px;
-    margin-top: 30px;
-    display: none;
 }
 
 .radio-sel {
@@ -84,4 +87,26 @@ body {
     font-weight: 300;
     margin-top: 20px;
     margin-bottom: 40px;
+}
+
+.errorlist {
+    margin-bottom: 5px;
+    width: 260px;
+    margin-top: 10px;
+    -webkit-animation-name: fadein; /* Safari 4.0 - 8.0 */
+    -webkit-animation-duration: 2s; /* Safari 4.0 - 8.0 */
+    animation-name: fadein;
+    animation-duration: 2s;
+}
+
+/* Safari 4.0 - 8.0 */
+@-webkit-keyframes fadein {
+    from {opacity: 0.5;}
+    to {opacity: 1;}
+}
+
+/* Standard syntax */
+@keyframes fadein {
+    from {opacity: 0.5;}
+    to {opacity: 1;}
 }

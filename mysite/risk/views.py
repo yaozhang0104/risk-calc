@@ -4,6 +4,8 @@ from django.template import loader
 from django.shortcuts import redirect
 
 import json
+from datetime import datetime
+import dateutil.relativedelta
 
 from .forms import StockForm
 from .forms import PortfolioForm
@@ -39,9 +41,13 @@ def render_stock(request):
             nday = form.cleaned_data['nday']
             method = form.cleaned_data['method']
             plotType = form.cleaned_data['plotType']
-            data = dataframe_from_tickerlist(ticker, startDate, endDate)
-            if (plotType == "PR"):
-                jsonData = plot_historical_price(ticker, data)
+            
+            if (plotType == "PV"):
+                rollingdata = rollingdata_from_tickerlist(ticker, window, endDate)
+                pricedata = positionprice_from_tickerlist(ticker, startDate)
+                sharelist = calculate_share(initial,pricedata,ticker)
+                pv = calculate_portfolio_value(ticker,sharelist,rollingdata)
+                jsonData = plot_portfolio_value(pv)
             else:
                 return redirect('/risk/stock/')
             return render(request, 'risk/index.html', {'plotValue': jsonData, 'version': 'stock'})
@@ -91,7 +97,19 @@ def render_option(request):
         form = OptionForm(initial={'ticker':'AAPL', 'initial':'10000', 'window':'10', 'startDate':'2000-1-1', 'endDate':'2010-12-31', 'varp':'0.99', 'esp':'0.975', 'nday':'5'})
     return render(request, 'risk/index.html', {'optionForm': form, 'version': 'option'})
 
-#dataframe_from_tickerlist(["AAPL","TSLA"],"2016-01-01","2016-12-31")
+
+def rollingdata_from_tickerlist(tickerlist, window, endDate):
+    startDate = endDate-dateutil.relativedelta.relativedelta(years = window)
+    startDate = startDate.strftime("%Y-%m-%d")
+    return dataframe_from_tickerlist(tickerlist, startDate, endDate)
+
+def positionprice_from_tickerlist(tickerlist, positionDate):
+    endDate = positionDate+dateutil.relativedelta.relativedelta(days = 10)
+    endDate = endDate.strftime("%Y-%m-%d")
+    data = dataframe_from_tickerlist(tickerlist, positionDate, endDate)
+    return data.head(1)
+
+#dataframe_from_tickerlist(["AAPL","TSLA"],"2016-1-31","2016-12-31")
 def dataframe_from_tickerlist(tickerlist, startDate, endDate):
     data = {}
     for t in tickerlist:
@@ -101,17 +119,34 @@ def dataframe_from_tickerlist(tickerlist, startDate, endDate):
                 data[str.format(t)] = web.DataReader(t, 'yahoo', startDate, endDate)['Adj Close'].rename(t)
                 break
             except:
-                if (attempts >= 5):
+                if (attempts >= 4):
                     raise
                 attempts += 1
     data = pd.DataFrame(data)
     return data
 
-# Currently only plot one stock
-def plot_historical_price(ticker, data):
-    dates = data[ticker].index.tolist()
+def calculate_share(initial, pricedata, tickerlist, weightlist=[1]):
+    if (len(tickerlist) != len(weightlist)):
+        raise ValueError('Ticker and weight length mismatch.')
+    share = {}
+    i = 0
+    for t in tickerlist:
+        share[t] = float(weightlist[i])*float(initial)/float(pricedata[t][0])
+        i = i+1
+    return share
+
+def calculate_portfolio_value(tickerlist, sharelist, rollingdata): 
+    pv = pd.DataFrame()
+    for t in tickerlist: 
+        if (pv.empty):
+            pv = rollingdata[t]*sharelist[t]
+        else:
+            pv = pv + rollingdata[t]*sharelist[t]
+    return pv
+    
+def plot_portfolio_value(data):
+    dates = data.index.tolist()
     dates = [date.strftime("%Y-%m-%d") for date in dates]
-    values = data[ticker].values.tolist()
-    values = [value[0] for value in values]
-    return json.dumps({'x':dates, 'y':values, 'ticker':ticker})
+    values = data.values.tolist()
+    return json.dumps({'x':dates, 'y':values, 'info':'Portfolio Value'})
 
