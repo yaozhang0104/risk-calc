@@ -15,28 +15,11 @@
   </head>
   <body>
     <div class="sidenav">
-      <a href="/risk/stock/">Stock</a>
       <a href="/risk/portfolio/">Portfolio</a>
       <a href="/risk/option/">Option</a>
     </div>
 
     <div class="main">
-      {% if version == "stock" %}
-      <div class="risk-title">Stock</div>
-      <div class="risk-subtitle">Stock VaR and ES Calculation...</div>
-      <div class="risk-data">
-        {% if stockForm %}
-        <form action="/risk/stock/" method="post">
-          {% csrf_token %}
-          <table class='risk-table'>
-            {{ stockForm }}
-          </table>
-          <button type="submit" class="btn btn-outline-primary btn-lg btn-block btn-cal">Calculate</button>
-        </form>
-        {% endif %}
-      </div>
-      {% endif %}
-      
       {% if version == "portfolio" %}
       <div class="risk-title">Portfolio</div>
       <div class="risk-subtitle">Portfolio VaR and ES Calculation...</div>
@@ -52,7 +35,6 @@
         {% endif %}
       </div>
       {% endif %}
-
       {% if version == "option" %}
       <div class="risk-title">Option</div>
       <div class="risk-subtitle">Option VaR and ES Calculation...</div>
@@ -86,7 +68,7 @@
     <!-- Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script type="text/javascript">
-      {% if stockForm or portfolioForm or optionForm %}
+      {% if portfolioForm or optionForm %}
       $.fn.datepicker.defaults.format = "yyyy-mm-dd";
       $.fn.datepicker.defaults.endDate = "-1d";
       $('#id_startDate').datepicker();
@@ -115,17 +97,17 @@
             x: plotData['x'],
             y: plotData['y'],
             type: 'scatter',
-            name: 'price'
+            name: '{{ title }}',
           }
         ];
         var layout = {
-          title: plotData['info']+" Chart",
+          title: '{{ title }}'+" Chart",
           xaxis: {
             title: 'Date',
             rangeslider: {}
           },
           yaxis: {
-            title: 'Portfolio Value'
+            title: '{{ title }}'
           },
           showlegend: true
         }
