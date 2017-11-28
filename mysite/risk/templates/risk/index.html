@@ -74,6 +74,26 @@
       $('#id_startDate').datepicker();
       $('#id_endDate').datepicker();
       $('.errorlist').addClass("alert alert-danger");
+
+      $('#id_plotType_0').on('change', function() {
+        //Portfolio Value
+        $(".risk-table :input").prop("disabled", false);
+        $('#id_rollingWindow').prop('disabled', true);
+        $('#id_varp').prop('disabled', true);
+        $('#id_esp').prop('disabled', true);
+        $('#id_nday').prop('disabled', true);
+        $('#id_method').prop('disabled', true);
+      });
+      $('#id_plotType_1').on('change', function() {
+        //VaR
+        $(".risk-table :input").prop("disabled", false);
+        $('#id_esp').prop('disabled', true);
+      });
+      $('#id_plotType_2').on('change', function() {
+        //ES
+        $(".risk-table :input").prop("disabled", false);
+        $('#id_varp').prop('disabled', true);
+      });
       {% endif %}
 
       {% if plotValue %}

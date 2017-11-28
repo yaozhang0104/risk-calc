@@ -10,7 +10,6 @@ from datetime import datetime
 import dateutil.relativedelta
 import numpy as np
 from scipy.stats import norm
-from scipy.special import ndtri
 
 from .forms import PortfolioForm
 from .forms import OptionForm
@@ -46,6 +45,21 @@ def render_portfolio(request):
             method = form.cleaned_data['method']
             plotType = form.cleaned_data['plotType']
             
+            if (rollingWindow is None):
+                rollingWindow = 5
+            if (varp is None):
+                varp = 0.99
+            if (esp is None):
+                esp = 0.975
+            if (nday is None):
+                nday = 5
+            if (method is None):
+                method = "PAR"
+            
+            initial = float(initial)
+            varp = float(varp)
+            esp = float(esp)
+            
             if (plotType == "PV"):
                 rollingdata = rollingdata_from_tickerlist(ticker, dataWindow, endDate)
                 pricedata = positionprice_from_tickerlist(ticker, startDate)
@@ -53,15 +67,38 @@ def render_portfolio(request):
                 pv = calculate_portfolio_value(ticker, sharelist, rollingdata)
                 jsonData = plot_portfolio(pv)
                 return render(request, 'risk/index.html', {'plotValue': jsonData, 'version': 'portfolio', 'title': 'Portfolio Value'})
-            elif (plotType == "VAR" and method == "PAR"):
+            elif (method == "PAR"):
                 rollingdata = rollingdata_from_tickerlist(ticker, dataWindow+rollingWindow, endDate)
                 pricedata = positionprice_from_tickerlist(ticker, startDate)
                 sharelist = calculate_share(initial, pricedata, ticker, weight)
                 pv = calculate_portfolio_value(ticker, sharelist, rollingdata)
                 gbmData = calculate_nyear_mu_sig(pv, rollingWindow)
-                var = calculate_pvar(gbmData, initial, varp, nday)
-                jsonData = plot_portfolio(var)
-                return render(request, 'risk/index.html', {'plotValue': jsonData, 'version': 'portfolio', 'title': 'Parametric VaR'})
+                if (plotType == "VAR"):
+                    title = 'Parametric VaR'
+                    data = calculate_pvar(gbmData, initial, varp, nday)
+                elif (plotType == "ES"):
+                    title = 'Parametric ES'
+                    data = calculate_pes(gbmData, initial, esp, nday)
+                else:
+                    return redirect('/risk/portfolio/')
+                jsonData = plot_portfolio(data)
+                return render(request, 'risk/index.html', {'plotValue': jsonData, 'version': 'portfolio', 'title': title})
+            elif (method == "HIS"):
+                rollingdata = rollingdata_from_tickerlist(ticker, dataWindow+rollingWindow, endDate)
+                pricedata = positionprice_from_tickerlist(ticker, startDate)
+                sharelist = calculate_share(initial, pricedata, ticker, weight)
+                pv = calculate_portfolio_value(ticker, sharelist, rollingdata)
+                ndayGBMData = calculate_nday_horizon_mu(pv, nday)
+                if (plotType == "VAR"):
+                    title = 'Historical VaR'
+                    data = calculate_hvar(ndayGBMData, initial, varp, nday)
+                elif (plotType == "ES"):
+                    title = 'Historical ES'
+                    data = calculate_hes(ndayGBMData, initial, esp, nday)
+                else:
+                    return redirect('/risk/portfolio/')
+                jsonData = plot_portfolio(data)
+                return render(request, 'risk/index.html', {'plotValue': jsonData, 'version': 'portfolio', 'title': title})
             else:
                 return redirect('/risk/portfolio/')
     else:
@@ -156,8 +193,8 @@ def calculate_nyear_mu_sig(data, nyear):
     port_log_return["sig"] = np.nan
     i = nday-1
     while (i < port_len):
-        avg = np.mean(port_log_return[port_name][(i-nday+1):i])
-        std = np.sqrt(np.mean(port_log_return[port_name][(i-nday+1):i]**2)-avg**2)
+        avg = np.mean(port_log_return[port_name][(i-nday+1):(i+1)])
+        std = np.sqrt(np.mean(port_log_return[port_name][(i-nday+1):(i+1)]**2)-avg**2)
         sig = std*np.sqrt(252)
         mu = avg*252+sig**2/2
         port_log_return["mu"][i] = mu
@@ -166,16 +203,48 @@ def calculate_nyear_mu_sig(data, nyear):
     return port_log_return.iloc[(nday-1):port_len]
     
 def calculate_pvar(data, initial, varp, nday):
-    varT = nday/252
+    varT = float(nday)/252
     var = pd.DataFrame()
-    var['var'] = float(initial)-float(initial)*np.exp(data['sig']*np.sqrt(varT)*norm.ppf(float(1-float(varp)))+(data['mu']-data['sig']**2/2)*varT)
+    var['var'] = initial-initial*np.exp(data['sig']*np.sqrt(varT)*norm.ppf(1-varp)+(data['mu']-data['sig']**2/2)*varT)
     return var
     
 def calculate_pes(data, initial, esp, nday):
-    esT = nday/252
+    esT = float(nday)/252
     es = pd.DataFrame()
-    es['es'] = float(initial)-float(initial)*np.exp(data['mu']*esT)*norm.cdf(norm.ppf(float(1-float(esp)))-data['sig']*np.sqrt(esT))/(1-esp)
-    es = pd.DataFrame(es)
+    es['es'] = initial-initial*np.exp(data['mu']*esT)*norm.cdf(norm.ppf(1-esp)-data['sig']*np.sqrt(esT))/(1-esp)
     return es
     
-    
+def calculate_nday_horizon_mu(data, nday):
+    port_data = pd.DataFrame(index=data.index)
+    port_name = list(data)[0]
+    port_len = data.shape[0]
+    i = nday
+    port_data['nmu'] = np.nan
+    while (i < port_len):
+        port_data['nmu'][i] = np.log(data[port_name][i]/data[port_name][i-nday])
+        i = i+1
+    return port_data.iloc[(nday):port_len]
+
+def calculate_hvar(data, initial, varp, nyear):
+    port_data = pd.DataFrame(index=data.index)
+    port_len = data.shape[0]
+    nday = int(np.ceil(nyear*252))
+    i = nday-1
+    port_data['hvar'] = np.nan
+    while (i < port_len):
+        v = data['nmu'][(i-nday+1):(i+1)].nsmallest(int(np.ceil((nday)*(1-varp))))
+        port_data['hvar'][i] = initial-initial*np.exp(v[-1])
+        i = i+1
+    return port_data.iloc[(nday-1):port_len]
+
+def calculate_hes(data, initial, esp, nyear):
+    port_data = pd.DataFrame(index=data.index)
+    port_len = data.shape[0]
+    nday = int(np.ceil(nyear*252))
+    i = nday-1
+    port_data['hes'] = np.nan
+    while (i < port_len):
+        v = data['nmu'][(i-nday+1):(i+1)].nsmallest(int(np.ceil((nday)*(1-esp))))
+        port_data['hes'][i] = float(np.sum(initial-initial*np.exp(v)))/int(np.ceil((nday)*(1-esp)))
+        i = i+1
+    return port_data.iloc[(nday-1):port_len]
